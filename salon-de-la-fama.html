@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Salón de la Fama - Edición Suprema</title>
+    <style>
+        /* =========================================
+           TIPOGRAFÍAS Y DISEÑO GLOBAL
+           ========================================= */
+        @font-face {
+            font-family: 'English Old Bold';
+            src: local('English Old Bold'), local('Old English Text MT'), serif;
+        }
+        @font-face {
+            font-family: 'Serif Black';
+            src: local('Serif Black'), local('Georgia'), serif;
+            font-weight: 900;
+        }
+
+        :root {
+            --bg-dark: #070709;
+            --panel-bg: #101014;
+            --border-color: #22222b;
+            --gold: #d4af37;
+            --gold-glow: rgba(212, 175, 55, 0.3);
+            
+            /* Colores de Banners */
+            --colombia-gradient: linear-gradient(135deg, #fcd116 0%, #003893 50%, #ce1126 100%);
+            --espana-gradient: linear-gradient(135deg, #aa151b 0%, #f1bf00 50%, #aa151b 100%);
+            --alemania-gradient: linear-gradient(135deg, #111113 0%, #2c2c35 50%, #0b0b0d 100%);
+        }
+
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at center, #14141c 0%, #050507 100%);
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, .caps-title {
+            font-family: 'English Old Bold', serif;
+            text-transform: uppercase;
+            margin: 0;
+            letter-spacing: 1px;
+        }
+
+        p, .match-info, .instruction-text, .team-name, .tab-btn {
+            font-family: 'Serif Black', serif;
+            margin: 0;
+        }
+
+        .main-header {
+            color: var(--gold);
+            font-size: 3.5rem;
+            margin-bottom: 40px;
+            text-shadow: 0 4px 20px var(--gold-glow);
+            text-align: center;
+        }
+
+        /* =========================================
+           BANNERS SUPERIORES (ESTILO ÁLBUM)
+           ========================================= */
+        .banners-container {
+            display: flex;
+            gap: 25px;
+            justify-content: center;
+            width: 100%;
+            max-width: 1050px;
+            margin-bottom: 40px;
+        }
+
+        .champion-banner {
+            flex: 1;
+            height: 380px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+            border: 2px solid transparent;
+        }
+
+        .champion-banner::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 20%, rgba(0,0,0,0.85) 100%);
+            pointer-events: none;
+        }
+
+        .champion-banner:hover, .champion-banner.active {
+            transform: translateY(-8px);
+            z-index: 5;
+        }
+
+        .banner-colombia { background: var(--colombia-gradient); }
+        .banner-espana { background: var(--espana-gradient); }
+        .banner-alemania { background: var(--alemania-gradient); }
+
+        .banner-colombia:hover, .banner-colombia.active { border-color: #fff; box-shadow: 0 15px 40px rgba(252, 209, 22, 0.3); }
+        .banner-espana:hover, .banner-espana.active { border-color: var(--gold); box-shadow: 0 15px 40px rgba(170, 21, 27, 0.4); }
+        .banner-alemania:hover, .banner-alemania.active { border-color: var(--gold); box-shadow: 0 15px 40px rgba(212, 175, 55, 0.25); }
+
+        /* Contenedor del Logo/Escudo Gigante */
+        .crest-wrapper {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: rgba(10, 10, 12, 0.8);
+            border: 4px solid rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            z-index: 2;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            position: relative;
+        }
+
+        .crest-wrapper img {
+            width: 82%;
+            height: 82%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .banner-espana .crest-wrapper, .banner-alemania .crest-wrapper {
+            border-color: var(--gold);
+            box-shadow: 0 0 15px var(--gold-glow);
+        }
+
+        /* Estrella sobre el Escudo */
+        .banner-star {
+            position: absolute;
+            top: -38px;
+            color: var(--gold);
+            font-size: 1.8rem;
+            text-shadow: 0 0 12px var(--gold);
+            z-index: 3;
+        }
+
+        .banner-title {
+            font-size: 2.4rem;
+            color: #fff;
+            z-index: 2;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.9);
+        }
+
+        .banner-subtitle {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.7);
+            z-index: 2;
+            letter-spacing: 2px;
+        }
+
+        /* =========================================
+           PANEL INFERIOR INTERACTIVO
+           ========================================= */
+        .details-container {
+            width: 100%;
+            max-width: 1150px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 35px;
+            min-height: 450px;
+            display: flex;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 20px 45px rgba(0,0,0,0.6);
+            box-sizing: border-box;
+        }
+
+        .instructions-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            color: #555560;
+        }
+        
+        .instructions-panel.hidden { display: none; }
+
+        .instruction-icon {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            animation: float 2.5s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .path-card {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .path-card.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Pestañas de Navegación Interna (Edición III) */
+        .edition-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #22222b;
+            padding-bottom: 15px;
+        }
+
+        .tab-btn {
+            background: #15151a;
+            border: 1px solid #252530;
+            color: #8c8c9e;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: var(--gold);
+            color: #070709;
+            border-color: var(--gold);
+            box-shadow: 0 0 15px var(--gold-glow);
+        }
+
+        /* Contenedor de Fase de Grupos */
+        .group-stage-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-height: 520px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .group-stage-container::-webkit-scrollbar { width: 6px; }
+        .group-stage-container::-webkit-scrollbar-track { background: #101014; }
+        .group-stage-container::-webkit-scrollbar-thumb { background: #252530; border-radius: 10px; }
+
+        .group-card {
+            background: #15151a;
+            border: 1px solid #252530;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .group-card-title {
+            font-family: 'English Old Bold', serif;
+            color: var(--gold);
+            border-bottom: 1px solid #222;
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .group-match {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            padding: 6px 0;
+            border-bottom: 1px solid #1c1c24;
+            color: #8c8c9e;
+        }
+
+        .group-match:last-child { border-bottom: none; }
+        .wo-text { color: #ff4d4d; font-size: 0.75rem; font-weight: bold; }
+
+        /* =========================================
+           SISTEMA DE BRACKET SIMÉTRICO (COMPLETO)
+           ========================================= */
+        .bracket-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 25px;
+            gap: 15px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+        }
+
+        .bracket-wrapper::-webkit-scrollbar { height: 6px; }
+        .bracket-wrapper::-webkit-scrollbar-track { background: #101014; }
+        .bracket-wrapper::-webkit-scrollbar-thumb { background: #252530; border-radius: 10px; }
+
+        .bracket-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 30px;
+            flex: 1;
+            flex-shrink: 0;
+        }
+
+        .side-octavos { max-width: 210px; min-width: 210px; gap: 15px; }
+        .side-quarters { max-width: 220px; min-width: 220px; }
+        .side-semis { max-width: 220px; min-width: 220px; }
+        
+        .center-stage {
+            flex: 1.4;
+            flex-shrink: 0;
+            min-width: 280px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: radial-gradient(circle, rgba(212,175,55,0.06) 0%, transparent 75%);
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        /* Cajas de Partido Modernas */
+        .match-box {
+            background: #15151a;
+            border: 1px solid #252530;
+            border-radius: 8px;
+            padding: 10px 14px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            transition: all 0.3s;
+        }
+
+        .match-box:hover {
+            border-color: #38384a;
+            background: #181822;
+        }
+
+        .match-phase {
+            font-family: 'English Old Bold', serif;
+            font-size: 0.8rem;
+            color: var(--gold);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #222;
+            padding-bottom: 4px;
+        }
+
+        .team-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 0.9rem;
+            color: #8c8c9e;
+        }
+
+        .team-identity {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Mini Logos / Banderas Circulares */
+        .team-logo {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .team-row.winner {
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .team-row.winner .score {
+            color: var(--gold);
+            font-weight: bold;
+        }
+
+        /* Estructura Especial del Centro (Final y Campeón) */
+        .center-champion-badge {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .center-champion-badge h3 {
+            font-size: 2.8rem;
+            color: var(--gold);
+            text-shadow: 0 0 20px var(--gold-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .match-box.final-box {
+            border: 2px solid var(--gold);
+            background: rgba(212, 175, 55, 0.04);
+            transform: scale(1.08);
+            width: 85%;
+            margin-bottom: 25px;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.1);
+        }
+
+        .match-box.final-box .match-phase {
+            font-size: 1rem;
+            text-align: center;
+            border-bottom-color: var(--gold);
+        }
+
+        .match-box.consolation-box {
+            transform: scale(0.9);
+            width: 75%;
+            opacity: 0.7;
+        }
+        
+        .match-box.consolation-box:hover { opacity: 1; }
+
+    </style>
+</head>
+<body>
+
+    <h1 class="main-header">Salón de la Fama</h1>
+
+    <!-- CONTENEDOR DE ESTANDARTES SUPERIORES -->
+    <div class="banners-container">
+        
+        <!-- Colombia -->
+        <div class="champion-banner banner-colombia" onclick="showEdition('colombia')">
+            <div class="crest-wrapper">
+                <span class="banner-star">⭐</span>
+                <img src="https://flagcdn.com/w320/co.png" alt="Colombia">
+            </div>
+            <h2 class="banner-title">Colombia</h2>
+            <div class="banner-subtitle caps-title">Campeón del Mundo</div>
+        </div>
+
+        <!-- España -->
+        <div class="champion-banner banner-espana" onclick="showEdition('espana')">
+            <div class="crest-wrapper">
+                <span class="banner-star">⭐</span>
+                <img src="https://flagcdn.com/w320/es.png" alt="España">
+            </div>
+            <h2 class="banner-title">España</h2>
+            <div class="banner-subtitle caps-title">Campeón del Mundo</div>
+        </div>
+
+        <!-- Alemania -->
+        <div class="champion-banner banner-alemania" onclick="showEdition('alemania')">
+            <div class="crest-wrapper">
+                <span class="banner-star">⭐</span>
+                <img src="https://flagcdn.com/w320/de.png" alt="Alemania">
+            </div>
+            <h2 class="banner-title">Alemania</h2>
+            <div class="banner-subtitle caps-title">Campeón del Mundo</div>
+        </div>
+
+    </div>
+
+    <!-- CUADRO DE DETALLES INFERIOR -->
+    <div class="details-container">
+        
+        <!-- Vista Inicial: Instrucciones -->
+        <div class="instructions-panel" id="view-instructions">
+            <div class="instruction-icon">🏆</div>
+            <h3 class="caps-title" style="color: var(--gold); margin-bottom: 8px; font-size: 1.4rem;">Historial de Torneos</h3>
+            <p class="instruction-text">Selecciona una selección ganadora para desplegar el cuadro completo del torneo.</p>
+        </div>
+
+        <!-- DETALLE: COLOMBIA (EDICIÓN I) -->
+        <div class="path-card" id="view-colombia">
+            <div style="text-align: center; margin-bottom: 10px;">
+                <h2 class="caps-title" style="font-size: 1.8rem; color: #fff;">Edición I</h2>
+                <p style="color: #666; font-size: 0.9rem; font-style: italic;">Registros históricos parciales de la temporada inicial</p>
+            </div>
+            
+            <div class="bracket-wrapper" style="justify-content: center;">
+                <div class="center-stage" style="flex: 0.6;">
+                    <div class="center-champion-badge">
+                        <p style="color: #888; font-size: 0.8rem; letter-spacing: 2px;" class="caps-title">Campeón Invicto</p>
+                        <h3>Colombia ⭐</h3>
+                    </div>
+                    <div class="match-box final-box">
+                        <div class="match-phase">Gran Final</div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/co.png" alt="CO">
+                                <span>Colombia</span>
+                            </div>
+                            <span class="score">2</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/fr.png" alt="FR">
+                                <span>Francia</span>
+                            </div>
+                            <span class="score">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DETALLE: ESPAÑA (EDICIÓN II) -->
+        <div class="path-card" id="view-espana">
+            <div style="text-align: center; margin-bottom: 10px;">
+                <h2 class="caps-title" style="font-size: 1.8rem; color: #fff;">Edición II</h2>
+                <p style="color: #666; font-size: 0.9rem; font-style: italic;">El torneo donde el furor de la furia roja dominó el mapa mundial</p>
+            </div>
+
+            <div class="bracket-wrapper">
+                
+                <!-- LADO IZQUIERDO: CUARTOS A -->
+                <div class="bracket-column side-quarters">
+                    <div class="match-box">
+                        <div class="match-phase">Cuartos A1</div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/br.png" alt="BR">
+                                <span>Brasil</span>
+                            </div>
+                            <span class="score">5</span>
+                        </div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/es.png" alt="ES">
+                                <span>España</span>
+                            </div>
+                            <span class="score">6</span>
+                        </div>
+                    </div>
+                    <div class="match-box">
+                        <div class="match-phase">Cuartos A2</div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/nl.png" alt="NL">
+                                <span>Holanda</span>
+                            </div>
+                            <span class="score">2</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/ar.png" alt="AR">
+                                <span>Argentina</span>
+                            </div>
+                            <span class="score">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LADO IZQUIERDO: SEMIFINAL A -->
+                <div class="bracket-column side-semis">
+                    <div class="match-box">
+                        <div class="match-phase">Semifinal A</div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/es.png" alt="ES">
+                                <span>España</span>
+                            </div>
+                            <span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/nl.png" alt="NL">
+                                <span>Holanda</span>
+                            </div>
+                            <span class="score">2</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CENTRO: EL GANADOR SUPREMO Y LAS FINALES -->
+                <div class="center-stage">
+                    <div class="center-champion-badge">
+                        <p style="color: #888; font-size: 0.8rem; letter-spacing: 2px;" class="caps-title">Monarca Absoluto</p>
+                        <h3>España ⭐</h3>
+                    </div>
+
+                    <div class="match-box final-box">
+                        <div class="match-phase">Gran Final Absoluta</div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/es.png" alt="ES">
+                                <span>España</span>
+                            </div>
+                            <span class="score">2</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/fr.png" alt="FR">
+                                <span>Francia</span>
+                            </div>
+                            <span class="score">0</span>
+                        </div>
+                    </div>
+
+                    <div class="match-box consolation-box">
+                        <div class="match-phase">Definición 3er Puesto</div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/nl.png" alt="NL">
+                                <span>Holanda</span>
+                            </div>
+                            <span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/py.png" alt="PY">
+                                <span>Paraguay</span>
+                            </div>
+                            <span class="score">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LADO DERECHO: SEMIFINAL B -->
+                <div class="bracket-column side-semis">
+                    <div class="match-box">
+                        <div class="match-phase">Semifinal B</div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/fr.png" alt="FR">
+                                <span>Francia</span>
+                            </div>
+                            <span class="score">2</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/py.png" alt="PY">
+                                <span>Paraguay</span>
+                            </div>
+                            <span class="score">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LADO DERECHO: CUARTOS B -->
+                <div class="bracket-column side-quarters">
+                    <div class="match-box">
+                        <div class="match-phase">Cuartos B1</div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/co.png" alt="CO">
+                                <span>Colombia</span>
+                            </div>
+                            <span class="score">0</span>
+                        </div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/fr.png" alt="FR">
+                                <span>Francia</span>
+                            </div>
+                            <span class="score">2</span>
+                        </div>
+                    </div>
+                    <div class="match-box">
+                        <div class="match-phase">Cuartos B2</div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/py.png" alt="PY">
+                                <span>Paraguay</span>
+                            </div>
+                            <span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/no.png" alt="NO">
+                                <span>Noruega</span>
+                            </div>
+                            <span class="score">0</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- DETALLE: ALEMANIA (EDICIÓN III - CON GRUPOS Y BRACKET SIMÉTRICO)[span_0](start_span)[span_0](end_span) -->
+        <div class="path-card" id="view-alemania">
+            <div style="text-align: center; margin-bottom: 15px;">
+                <h2 class="caps-title" style="font-size: 1.8rem; color: #fff;">Edición III</h2>
+                <p style="color: var(--gold); font-size: 0.9rem; font-weight: bold; letter-spacing: 1px;">HISTÓRICA INTRODUCCIÓN DE LA FASE DE GRUPOS</p>
+            </div>
+
+            <!-- Selectores de Sub-fases -->
+            <div class="edition-tabs">
+                <button class="tab-btn active" id="tab-deu-grupos" onclick="toggleGermanyStage('grupos')">Fase de Grupos</button>
+                <button class="tab-btn" id="tab-deu-final" onclick="toggleGermanyStage('final')">Fase Final (Playoffs)</button>
+            </div>
+
+            <!-- CONTENIDO: FASE DE GRUPOS -->
+            <div class="group-stage-container" id="deu-stage-grupos">
+                <!-- Bloque A -->
+                <div class="group-card">
+                    <div class="group-card-title"><span>Bloque A</span> <span>⚽</span></div>
+                    <div class="group-match"><span>Argentina 2 - 1 México</span> <span class="wo-text" style="color:var(--gold)">Inaugural</span></div>
+                    <div class="group-match"><span>Paraguay 2 - 2 Holanda</span></div>
+                    <div class="group-match"><span>España 3 - 0 Venezuela</span> <span class="wo-text">W.O.</span></div>
+                    <div class="group-match"><span>Holanda 2 - 0 México</span></div>
+                    <div class="group-match"><span>Argentina 3 - 2 Paraguay</span></div>
+                    <div class="group-match"><span>Panamá 2 - 1 Egipto</span></div>
+                    <div class="group-match"><span>Colombia 3 - 2 Ghana</span></div>
+                    <div class="group-match"><span>México 2 - 1 Paraguay</span></div>
+                    <div class="group-match"><span>Argentina 3 - 1 Holanda</span></div>
+                </div>
+
+                <!-- Bloque B -->
+                <div class="group-card">
+                    <div class="group-card-title"><span>Bloque B</span> <span>⚽</span></div>
+                    <div class="group-match"><span>Brasil 3 - 1 Ecuador</span></div>
+                    <div class="group-match"><span>Bélgica 2 - 3 Perú</span></div>
+                    <div class="group-match"><span>Ecuador 2 - 3 Brasil</span></div>
+                    <div class="group-match"><span>Brasil 2 - 2 Francia</span></div>
+                    <div class="group-match"><span>España 3 - 2 Colombia</span></div>
+                    <div class="group-match"><span>Francia 3 - 1 Ecuador</span></div>
+                    <div class="group-match"><span>España 3 - 3 Ghana</span></div>
+                    <div class="group-match"><span>Cabo Verde 2 - 2 Brasil</span></div>
+                    <div class="group-match"><span>Francia 3 - 1 Cabo Verde</span></div>
+                </div>
+
+                <!-- Bloque C -->
+                <div class="group-card">
+                    <div class="group-card-title"><span>Bloque C</span> <span>⚽</span></div>
+                    <div class="group-match"><span>Marruecos 2 - 1 Japón</span></div>
+                    <div class="group-match"><span>Bélgica 2 - 3 Francia</span></div>
+                    <div class="group-match"><span>Egipto 3 - 0 Chile</span></div>
+                    <div class="group-match"><span>Panamá 3 - 0 Uruguay</span></div>
+                    <div class="group-match"><span>Estados Unidos 3 - 0 Portugal</span></div>
+                    <div class="group-match"><span>Croacia 3 - 2 Sudáfrica</span></div>
+                    <div class="group-match"><span>Sudáfrica 2 - 2 Estados Unidos</span></div>
+                    <div class="group-match"><span>Costa Rica 2 - 2 R. Dominicana</span></div>
+                </div>
+
+                <!-- Bloque D -->
+                <div class="group-card">
+                    <div class="group-card-title"><span>Bloque D</span> <span>⚽</span></div>
+                    <div class="group-match"><span>Estados Unidos 3 - 1 Croacia</span></div>
+                    <div class="group-match"><span>Sudáfrica 1 - 2 Portugal</span></div>
+                    <div class="group-match"><span>Croacia 0 - 2 Portugal</span></div>
+                    <div class="group-match"><span>Noruega 2 - 1 Inglaterra</span></div>
+                    <div class="group-match"><span>Noruega 1 - 3 Perú</span></div>
+                    <div class="group-match"><span>Perú 3 - 2 Inglaterra</span></div>
+                    <div class="group-match"><span>Corea del Sur 2 - 2 Italia</span></div>
+                    <div class="group-match"><span>Corea del Sur 2 - 2 Nueva Zelanda</span></div>
+                </div>
+
+                <!-- Bloque E -->
+                <div class="group-card">
+                    <div class="group-card-title"><span>Bloque E</span> <span>⚽</span></div>
+                    <div class="group-match"><span>Suecia 1 - 3 Italia</span></div>
+                    <div class="group-match"><span>Nueva Zelanda 3 - 2 Suecia</span></div>
+                    <div class="group-match"><span>Suecia 3 - 2 Corea del Sur</span></div>
+                    <div class="group-match"><span>Bolivia 3 - 2 Camerún</span></div>
+                    <div class="group-match"><span>Camerún 2 - 3 Costa Rica</span></div>
+                    <div class="group-match"><span>Bolivia 3 - 0 R. Dominicana</span></div>
+                    <div class="group-match" style="background: rgba(212,175,55,0.05);"><span>Japón 1 - 2 Alemania</span></div>
+                </div>
+            </div>
+
+            <!-- CONTENIDO: FASE ELIMINATORIA SIMÉTRICA (FINAL EN EL CENTRO)[span_1](start_span)[span_1](end_span) -->
+            <p style="text-align:center; color:#555560; font-size:0.75rem; margin-bottom:10px; display:none;" id="deu-scroll-hint">↔ Deslizá para ver el cuadro completo</p>
+            <div class="bracket-wrapper" id="deu-stage-final" style="display: none;">
+                
+                <!-- IZQUIERDA EXTREMA: OCTAVOS (LADO A) -->
+                <div class="bracket-column side-octavos">
+                    <div class="match-box">
+                        <div class="match-phase">Octavos A1</div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/pe.png" alt="PE"><span>Perú</span></div><span class="score">1</span>
+                        </div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/de.png" alt="DE"><span>Alemania</span></div><span class="score">2</span>
+                        </div>
+                    </div>
+                    <div class="match-box">
+                        <div class="match-phase">Octavos A2</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/ar.png" alt="AR"><span>Argentina</span></div><span class="score">6</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/eg.png" alt="EG"><span>Egipto</span></div><span class="score">5</span>
+                        </div>
+                    </div>
+                    <div class="match-box">
+                        <div class="match-phase">Octavos A3</div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/br.png" alt="BR"><span>Brasil</span></div><span class="score">2</span>
+                        </div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/nl.png" alt="NL"><span>Holanda</span></div><span class="score">5</span>
+                        </div>
+                    </div>
+                    <div class="match-box">
+                        <div class="match-phase">Octavos A4</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/us.png" alt="US"><span>E.E.U.U.</span></div><span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/cr.png" alt="CR"><span>Costa Rica</span></div><span class="score">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IZQUIERDA INTERNA: CUARTOS (LADO A) -->
+                <div class="bracket-column side-quarters">
+                    <div class="match-box">
+                        <div class="match-phase">Cuartos A1</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/de.png" alt="DE"><span>Alemania</span></div><span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/ar.png" alt="AR"><span>Argentina</span></div><span class="score">0</span>
+                        </div>
+                    </div>
+                    <div class="match-box">
+                        <div class="match-phase">Cuartos A2</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/us.png" alt="US"><span>E.E.U.U.</span></div><span class="score">2</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/nl.png" alt="NL"><span>Holanda</span></div><span class="score">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IZQUIERDA CENTRAL: SEMIFINAL A -->
+                <div class="bracket-column side-semis">
+                    <div class="match-box">
+                        <div class="match-phase">Semifinal 1</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/de.png" alt="DE"><span>Alemania</span></div><span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/us.png" alt="US"><span>E.E.U.U.</span></div><span class="score">2</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CENTRO: GRAN FINAL ABSOLUTA Y TERCER PUESTO -->
+                <div class="center-stage">
+                    <div class="center-champion-badge">
+                        <p style="color: #888; font-size: 0.8rem; letter-spacing: 2px;" class="caps-title">Campeón de la Edición III</p>
+                        <h3>Alemania ⭐</h3>
+                    </div>
+
+                    <div class="match-box final-box">
+                        <div class="match-phase">Gran Final Absoluta</div>
+                        <div class="team-row winner">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/de.png" alt="DE">
+                                <span>Alemania</span>
+                            </div>
+                            <span class="score">2</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity">
+                                <img class="team-logo" src="https://flagcdn.com/w40/fr.png" alt="FR">
+                                <span>Francia</span>
+                            </div>
+                            <span class="score">1</span>
+                        </div>
+                    </div>
+
+                    <div class="match-box consolation-box">
+                        <div class="match-phase">Definición 3er Puesto</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/us.png" alt="US"><span>E.E.U.U.</span></div><span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/es.png" alt="ES"><span>España</span></div><span class="score">2</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DERECHA CENTRAL: SEMIFINAL B -->
+                <div class="bracket-column side-semis">
+                    <div class="match-box">
+                        <div class="match-phase">Semifinal 2</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/fr.png" alt="FR"><span>Francia</span></div><span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/es.png" alt="ES"><span>España</span></div><span class="score">2</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DERECHA INTERNA: CUARTOS (LADO B) -->
+                <div class="bracket-column side-quarters">
+                    <div class="match-box">
+                        <div class="match-phase">Cuartos B1</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/es.png" alt="ES"><span>España</span></div><span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/bo.png" alt="BO"><span>Bolivia</span></div><span class="score">2</span>
+                        </div>
+                    </div>
+                    <div class="match-box">
+                        <div class="match-phase">Cuartos B2</div>
+                        <div class="team-row winner">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/fr.png" alt="FR"><span>Francia</span></div><span class="score">3</span>
+                        </div>
+                        <div class="team-row">
+                            <div class="team-identity"><img class="team-logo" src="https://flagcdn.com/w40/it.png" alt="IT"><span>Italia</span></div><span class="score">2</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DERECHA EXTREMA: OCTAVOS (LADO B) -->
+                <div class="bracket-column side-octavos">
+                    <div class="match-box"><div class="match-phase">Octavos B1</div><div class="team-row winner"><span>España</span><span class="score">✓</span></div><div class="team-row"><span>Fase Grupos</span><span class="score">-</span></div></div>
+                    <div class="match-box"><div class="match-phase">Octavos B2</div><div class="team-row winner"><span>Bolivia</span><span class="score">✓</span></div><div class="team-row"><span>Fase Grupos</span><span class="score">-</span></div></div>
+                    <div class="match-box"><div class="match-phase">Octavos B3</div><div class="team-row winner"><span>Francia</span><span class="score">✓</span></div><div class="team-row"><span>Fase Grupos</span><span class="score">-</span></div></div>
+                    <div class="match-box"><div class="match-phase">Octavos B4</div><div class="team-row winner"><span>Italia</span><span class="score">✓</span></div><div class="team-row"><span>Fase Grupos</span><span class="score">-</span></div></div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- CONTROL DE INTERACTIVIDAD -->
+    <script>
+        function showEdition(editionId) {
+            // Ocultar pantalla de instrucciones por defecto
+            document.getElementById('view-instructions').classList.add('hidden');
+
+            // Quitar el estado activo de todos los subpaneles
+            const cards = document.querySelectorAll('.path-card');
+            cards.forEach(card => card.classList.remove('active'));
+
+            // Quitar el estado activo visual de los banners superiores
+            const banners = document.querySelectorAll('.champion-banner');
+            banners.forEach(banner => banner.classList.remove('active'));
+
+            // Activar el subpanel y el banner seleccionado
+            document.getElementById('view-' + editionId).classList.add('active');
+            document.querySelector('.banner-' + editionId).classList.add('active');
+        }
+
+        function toggleGermanyStage(stage) {
+            const tabGrupos = document.getElementById('tab-deu-grupos');
+            const tabFinal = document.getElementById('tab-deu-final');
+            const boxGrupos = document.getElementById('deu-stage-grupos');
+            const boxFinal = document.getElementById('deu-stage-final');
+            const scrollHint = document.getElementById('deu-scroll-hint');
+
+            if (stage === 'grupos') {
+                tabGrupos.classList.add('active');
+                tabFinal.classList.remove('active');
+                boxGrupos.style.display = 'grid';
+                boxFinal.style.display = 'none';
+                scrollHint.style.display = 'none';
+            } else {
+                tabFinal.classList.add('active');
+                tabGrupos.classList.remove('active');
+                boxGrupos.style.display = 'none';
+                boxFinal.style.display = 'flex';
+                scrollHint.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
