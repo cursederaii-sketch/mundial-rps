@@ -13,6 +13,28 @@
 <meta name="theme-color" content="#e0b96a">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- SDK de Firebase para DB Global -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  
+  // TU CONFIGURACIÓN REAL PEGADA ACÁ:
+  const firebaseConfig = {
+    apiKey: "AIzaSyDhE7zL5NiYrm__xvP16JtsmSANgIE5-7Y",
+    authDomain: "mundialrps-2034.firebaseapp.com",
+    projectId: "mundialrps-2034",
+    storageBucket: "mundialrps-2034.firebasestorage.app",
+    messagingSenderId: "374999678359",
+    appId: "1:374999678359:web:15da20756a3f7cfb5798d2",
+    measurementId: "G-DNJ3HB9Y7H"
+  };
+  
+  // ¡IMPORTANTE! Le sacamos las dos barras "//" del principio a estas líneas para que funcione:
+  const app = initializeApp(firebaseConfig);
+  window.db = getDatabase(app);
+</script>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -609,6 +631,7 @@ body.tv-mode .section-head{margin-top:40px;}
     </div>
     <button class="tv-toggle" id="btnSoundToggle" title="Sonido">🔊</button>
     <button class="tv-toggle" id="btnTvMode" title="Modo TV / Presentación">👁️ Modo TV</button>
+    <button class="tv-toggle" id="btnAdminLogin" title="Acceso Admin">🔐 Admin</button>
   </div>
 
   <header>
@@ -620,13 +643,13 @@ body.tv-mode .section-head{margin-top:40px;}
     <div class="realnote tv-hide">*Resultados basados en el fútbol real*</div>
   </header>
 
-  <div class="section-head tv-hide">
+  <div class="section-head tv-hide admin-only">
     <div class="num">1</div>
     <h2>Cargar Resultado</h2>
     <div class="line"></div>
   </div>
 
-  <div class="panel tv-hide">
+  <div class="panel tv-hide admin-only">
     <div class="panel-title">Resultado de partido</div>
     <div class="form-row">
       <div class="field">
@@ -679,7 +702,7 @@ body.tv-mode .section-head{margin-top:40px;}
     </div>
   </div>
 
-  <div class="panel tv-hide">
+  <div class="panel tv-hide admin-only">
     <div class="panel-title">🟨🟥 Tarjetas (Fair Play)</div>
     <div class="form-row">
       <div class="field">
@@ -966,10 +989,59 @@ body.tv-mode .section-head{margin-top:40px;}
 </div>
 
 <script>
-/* ============================= STORAGE SHIM (localStorage real, fuera de Claude.ai) ============================= */
+/* ============================= CONFIGURACIÓN DE FIREBASE & ADMIN ============================= */
+const ADMIN_PASSWORD = "DMORTE34"; // 👉 Cambiá esto por tu clave real antes de publicar
+window.isAdmin = localStorage.getItem("rps_admin") === "true";
+window.db = null; // Se inicializará desde el <head> con tus credenciales
+
+function updateAdminButton(){
+  const btn = document.getElementById('btnAdminLogin');
+  if(!btn) return;
+  btn.textContent = window.isAdmin ? '🔓 Admin activo' : '🔐 Admin';
+}
+function applyAdminVisibility(){
+  document.querySelectorAll('.admin-only').forEach(el=>{
+    el.style.display = window.isAdmin ? '' : 'none';
+  });
+  document.querySelectorAll('.non-admin-only').forEach(el=>{
+    el.style.display = window.isAdmin ? 'none' : '';
+  });
+}
+function adminLogin(){
+  if(window.isAdmin){
+    if(confirm('¿Cerrar sesión de admin?')){
+      window.isAdmin = false;
+      localStorage.removeItem('rps_admin');
+      updateAdminButton();
+      applyAdminVisibility();
+    }
+    return;
+  }
+  const pass = prompt('Ingresá la clave de admin:');
+  if(pass === null) return;
+  if(pass === ADMIN_PASSWORD){
+    window.isAdmin = true;
+    localStorage.setItem('rps_admin', 'true');
+    alert('Listo, ahora sos admin en este dispositivo.');
+  } else {
+    alert('Clave incorrecta.');
+  }
+  updateAdminButton();
+  applyAdminVisibility();
+}
+
+/* ============================= STORAGE SHIM (ADAPTADO A FIREBASE) ============================= */
 if(!window.storage){
   window.storage = {
     async get(key, shared){
+      if (window.db) {
+        try {
+          const { get, ref } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
+          const snapshot = await get(ref(window.db, 'torneo/' + key));
+          if (snapshot.exists()) return { key, value: JSON.stringify(snapshot.val()), shared: !!shared };
+        } catch(e) { console.error("Firebase get error", e); }
+      }
+      // Fallback a localStorage si Firebase no está listo
       try{
         const raw = localStorage.getItem(key);
         if(raw===null || raw===undefined) return null;
@@ -977,12 +1049,34 @@ if(!window.storage){
       }catch(e){ return null; }
     },
     async set(key, value, shared){
+      // REGULACIÓN DE ADMIN: Predicciones libres, el resto (partidos, eliminatorias, etc) bloqueado
+      const adminKeys = ["matches", "cards", "bracketScores"];
+      const isRestricted = adminKeys.some(k => key.includes(k));
+      
+      if (isRestricted && !window.isAdmin) {
+        alert("Acción denegada: Solo el creador (Admin) puede modificar resultados globales.");
+        return null; // Bloqueado para usuarios normales
+      }
+
+      if (window.db) {
+        try {
+          const { set, ref } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
+          await set(ref(window.db, 'torneo/' + key), JSON.parse(value));
+        } catch(e) { console.error("Firebase set error", e); }
+      }
       try{
         localStorage.setItem(key, value);
         return { key, value, shared: !!shared };
       }catch(e){ return null; }
     },
     async delete(key, shared){
+      if (!window.isAdmin) return null;
+      if (window.db) {
+        try {
+          const { set, ref } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
+          await set(ref(window.db, 'torneo/' + key), null);
+        } catch(e) { console.error("Firebase delete error", e); }
+      }
       try{
         localStorage.removeItem(key);
         return { key, deleted:true, shared: !!shared };
@@ -1004,7 +1098,65 @@ if(!window.storage){
 /* ============================= DATA: COPA MUNDIAL DE RPS 2034 ============================= */
 let CURRENT_YEAR = 2034;
 
-// new_str
+// --- RANKING HISTÓRICO Y DETECCIÓN DE NOMBRES (FUZZY MATCHING) ---
+const TOP_5_HISTORICO = [
+  { id: "mbappe", name: "Kylian Mbappé", team: "Francia", baseGoals: 18, aliases: ["mbappe", "kylian"] },
+  { id: "yamal", name: "Lamine Yamal", team: "España", baseGoals: 18, aliases: ["lamine", "yamal"] },
+  { id: "pulisic", name: "Christian Pulisic", team: "Estados Unidos", baseGoals: 16, aliases: ["pulisic", "christian"] },
+  { id: "alvarez", name: "Julián Álvarez", team: "Argentina", baseGoals: 14, aliases: ["julian", "alvarez", "araña", "julian alvarez"] },
+  { id: "neymar", name: "Neymar", team: "Brasil", baseGoals: 12, aliases: ["neymar", "ney"] }
+];
+
+function normalizeName(name) {
+  return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+// Distancia de Levenshtein simple, para detectar errores de tipeo (ej: "Mabppe" vs "Mbappe")
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length:m+1}, (_,i)=>[i, ...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// Devuelve true si dos nombres normalizados son "razonablemente el mismo jugador"
+function isSimilarName(a, b) {
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true; // "julian" dentro de "julian alvarez"
+  const dist = levenshtein(a, b);
+  const maxLen = Math.max(a.length, b.length);
+  return maxLen > 3 && dist <= Math.ceil(maxLen * 0.2); // tolera ~20% de diferencia (typos)
+}
+
+// team es opcional: si se pasa, primero busca coincidencias en el plantel real cargado de ese país
+function fuzzyMatchPlayer(inputName, team) {
+  const normalized = normalizeName(inputName);
+  if (!normalized) return inputName.trim();
+
+  // 1) Comparar contra el plantel real del equipo (lo que vos cargaste en "Plantillas")
+  if (team && squads[team]) {
+    for (const registered of squads[team]) {
+      if (isSimilarName(normalizeName(registered), normalized)) {
+        return registered; // Usa el nombre ya registrado, evita duplicados tipo "Julian" / "Julián Álvarez"
+      }
+    }
+  }
+
+  // 2) Comparar contra el top histórico (aliases conocidos), respetando el país cuando se conoce
+  for (const p of TOP_5_HISTORICO) {
+    if (team && p.team !== team) continue; // "julian" en Francia no debe matchear con Julián Álvarez (Argentina)
+    if (normalizeName(p.name) === normalized || p.aliases.some(alias => normalized.includes(alias))) {
+      return p.name;
+    }
+  }
+
+  return inputName.trim();
+}
 const FLAG_CODES = {
   "Argentina":"ar","Francia":"fr","España":"es","Colombia":"co","Brasil":"br",
   "Alemania":"de","Inglaterra":"gb-eng","Portugal":"pt","Italia":"it","Países Bajos":"nl",
@@ -1281,13 +1433,29 @@ function computeGroupStandings(g){
   const groupCards = cards.filter(c=>c.group===g);
   return computeStandingsGeneric(teamList, groupMatches, groupCards);
 }
+// 👉 Config: cuántos "mejores terceros" clasifican además de los 1° y 2° de cada grupo.
+// 0 = formato clásico de 32 (solo 1° y 2° pasan, como está hoy).
+// Ej: con 12 grupos de 4 (formato Mundial 2026 de 48 equipos), se usan 8 mejores terceros.
+const CUPOS_MEJORES_TERCEROS = 0;
+
 function qualifiedTeamNames(){
   const set = new Set();
+  let terceros = [];
+
   GROUP_LETTERS.forEach(g=>{
     const rows = computeGroupStandings(g);
-    if(rows[0]) set.add(rows[0].team);
-    if(rows[1]) set.add(rows[1].team);
+    if(rows[0]) set.add(rows[0].team); // Pasa 1.°
+    if(rows[1]) set.add(rows[1].team); // Pasa 2.°
+    if(rows[2]) terceros.push(rows[2]); // Se guarda el 3.° para comparar
   });
+
+  if (CUPOS_MEJORES_TERCEROS > 0) {
+    // Ordena a todos los terceros usando TODOS los criterios de desempate
+    // (Puntos > Dif de gol > Goles > Mano a mano > Fair Play > Sorteo)
+    terceros.sort((a,b) => compareTeams(a, b, matches));
+    terceros.slice(0, CUPOS_MEJORES_TERCEROS).forEach(t => set.add(t.team));
+  }
+
   return set;
 }
 
@@ -1490,7 +1658,11 @@ function renderScorersBox(){
 }
 function collectScorers(side){
   const arr = side==='A'?scorerRowsA:scorerRowsB;
-  return arr.filter(r=>r.player && r.player.trim() && r.goals>0).map(r=>({player:r.player.trim(), goals:r.goals}));
+  const team = side==='A' ? document.getElementById('selTeamA').value : document.getElementById('selTeamB').value;
+  return arr.filter(r=>r.player && r.player.trim() && r.goals>0).map(r=>({
+    player: fuzzyMatchPlayer(r.player, team),
+    goals: r.goals
+  }));
 }
 
 /* ---- Plantillas de jugadores ---- */
@@ -1570,6 +1742,13 @@ let editingMatchId = null;
 function computeHistoricalTopScorers(limit){
   limit = limit || 15;
   const totals = {};
+
+  // Arranca con la base histórica real (Mbappé 18, Yamal 18, Pulisic 16, Álvarez 14, Neymar 12)
+  TOP_5_HISTORICO.forEach(p=>{
+    const key = p.name+'|'+p.team;
+    totals[key] = { player: p.name, country: p.team, goals: p.baseGoals };
+  });
+
   const addSnapshot = (snap)=>{
     if(!snap) return;
     Object.entries(snap).forEach(([country, players])=>{
@@ -2790,6 +2969,9 @@ async function init(){
   });
   document.getElementById('btnTvMode').addEventListener('click', toggleTvMode);
   document.getElementById('btnSoundToggle').addEventListener('click', toggleSound);
+  document.getElementById('btnAdminLogin').addEventListener('click', adminLogin);
+  updateAdminButton();
+  applyAdminVisibility();
 
   populateGroupSelect();
   populateTeamSelects();
