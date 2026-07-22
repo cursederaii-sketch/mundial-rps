@@ -23,6 +23,7 @@
   const firebaseConfig = {
     apiKey: "AIzaSyDhE7zL5NiYrm__xvP16JtsmSANgIE5-7Y",
     authDomain: "mundialrps-2034.firebaseapp.com",
+    databaseURL: "https://mundialrps-2034-default-rtdb.firebaseio.com",
     projectId: "mundialrps-2034",
     storageBucket: "mundialrps-2034.firebasestorage.app",
     messagingSenderId: "374999678359",
@@ -1050,23 +1051,32 @@ if(!window.storage){
     },
     async set(key, value, shared){
       // REGULACIÓN DE ADMIN: Predicciones libres, el resto (partidos, eliminatorias, etc) bloqueado
+      // Chequeamos directo contra localStorage (no solo window.isAdmin) para evitar falsos negativos
+      const reallyAdmin = window.isAdmin || localStorage.getItem('rps_admin') === 'true';
       const adminKeys = ["matches", "cards", "bracketScores"];
       const isRestricted = adminKeys.some(k => key.includes(k));
-      
-      if (isRestricted && !window.isAdmin) {
+
+      if (isRestricted && !reallyAdmin) {
         alert("Acción denegada: Solo el creador (Admin) puede modificar resultados globales.");
         return null; // Bloqueado para usuarios normales
       }
 
+      let firebaseOk = true;
       if (window.db) {
         try {
           const { set, ref } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
           await set(ref(window.db, 'torneo/' + key), JSON.parse(value));
-        } catch(e) { console.error("Firebase set error", e); }
+        } catch(e) {
+          firebaseOk = false;
+          console.error("Firebase set error", e);
+          if (reallyAdmin) alert("⚠️ No se pudo guardar en el servidor (Firebase). Revisá la conexión o las reglas del proyecto. El cambio quedó guardado solo en este dispositivo.");
+        }
+      } else if (reallyAdmin) {
+        console.warn("window.db no está inicializado todavía — guardando solo local.");
       }
       try{
         localStorage.setItem(key, value);
-        return { key, value, shared: !!shared };
+        return { key, value, shared: !!shared, syncedToServer: firebaseOk };
       }catch(e){ return null; }
     },
     async delete(key, shared){
@@ -1683,25 +1693,38 @@ function renderSquadList(){
   if(!roster.length){ list.innerHTML = '<div class="hist-empty">Todavía no cargaste jugadores para este país.</div>'; return; }
   list.innerHTML = roster.map(p=>`<span class="team-chip">${p}<span class="rm" data-name="${p.replace(/"/g,'&quot;')}">✕</span></span>`).join('');
   list.querySelectorAll('.rm').forEach(el=>{
-    el.addEventListener('click', async ()=>{
+    el.addEventListener('click', ()=>{
       squads[country] = (squads[country]||[]).filter(p=>p!==el.dataset.name);
-      await saveSquads();
       renderSquadList();
       renderScorersBox();
+      saveSquads().catch(e=> console.error('Error guardando plantel', e));
     });
   });
 }
-async function addSquadPlayer(){
+function addSquadPlayer(){
   const country = document.getElementById('selSquadCountry').value;
   const input = document.getElementById('squadPlayerName');
   const name = input.value.trim();
   if(!name) return;
   squads[country] = squads[country] || [];
-  if(!squads[country].includes(name)) squads[country].push(name);
+
+  // Evita duplicados tipo "Julian" / "julian" / "JULIAN "
+  const yaExiste = squads[country].some(p => isSimilarName(normalizeName(p), normalizeName(name)));
+  if(yaExiste){
+    input.value='';
+    alert(`"${name}" ya está cargado (o un nombre muy parecido) en el plantel.`);
+    return;
+  }
+
+  squads[country].push(name);
   input.value='';
-  await saveSquads();
+
+  // Actualiza la pantalla al instante, sin esperar la red (optimista)
   renderSquadList();
   renderScorersBox();
+
+  // Guarda en segundo plano
+  saveSquads().catch(e=> console.error('Error guardando plantel', e));
 }
 
 /* ---- Ranking de goleadores por país ---- */
