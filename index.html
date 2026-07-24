@@ -2280,9 +2280,16 @@ async function nuevaEdicion(){
   }
   const entry = getCurrentChampionEntry();
   const scorersSnapshot = computeGoleadoresPorPais();
+  // Guardamos también el detalle completo (grupos, partidos y cuadro) para que el
+  // Salón de la Fama pueda mostrar la vista previa de esta edición más adelante.
+  const snapshot = {
+    groupsBase: JSON.parse(JSON.stringify(GROUPS_BASE)),
+    matches: JSON.parse(JSON.stringify(matches)),
+    bracketScores: JSON.parse(JSON.stringify(bracketScores))
+  };
   const archived = entry
-    ? { ...entry, live:false, scorers:scorersSnapshot }
-    : { year:CURRENT_YEAR, champion:null, runnerUp:null, scoreFinal:null, third:null, fourth:null, scoreThird:null, live:false, scorers:scorersSnapshot };
+    ? { ...entry, live:false, scorers:scorersSnapshot, snapshot }
+    : { year:CURRENT_YEAR, champion:null, runnerUp:null, scoreFinal:null, third:null, fourth:null, scoreThird:null, live:false, scorers:scorersSnapshot, snapshot };
   archivedEditions.push(archived);
   await saveArchivedEditions();
 

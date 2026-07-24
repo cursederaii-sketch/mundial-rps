@@ -431,6 +431,24 @@
         .match-box.consolation-box:hover { opacity: 1; }
 
     </style>
+
+    <!-- SDK de Firebase (SOLO LECTURA) — para traer automáticamente los campeones nuevos -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+      const firebaseConfig = {
+        apiKey: "AIzaSyDhE7zL5NiYrm__xvP16JtsmSANgIE5-7Y",
+        authDomain: "mundialrps-2034.firebaseapp.com",
+        databaseURL: "https://mundialrps-2034-default-rtdb.firebaseio.com",
+        projectId: "mundialrps-2034",
+        storageBucket: "mundialrps-2034.firebasestorage.app",
+        messagingSenderId: "374999678359",
+        appId: "1:374999678359:web:15da20756a3f7cfb5798d2",
+        measurementId: "G-DNJ3HB9Y7H"
+      };
+      const app = initializeApp(firebaseConfig);
+      window.__hofDb = getDatabase(app);
+    </script>
 </head>
 <body>
 
@@ -974,6 +992,165 @@
                 scrollHint.style.display = 'block';
             }
         }
+
+        /* ===================================================================
+           SINCRONIZACIÓN AUTOMÁTICA — agrega ediciones nuevas sin tocar
+           las 3 que ya están escritas a mano (Colombia, España, Alemania)
+           =================================================================== */
+        const HOF_FLAG_CODES = {
+          "Argentina":"ar","Francia":"fr","España":"es","Colombia":"co","Brasil":"br",
+          "Alemania":"de","Inglaterra":"gb-eng","Portugal":"pt","Italia":"it","Países Bajos":"nl",
+          "Bélgica":"be","Croacia":"hr","Uruguay":"uy","México":"mx","Estados Unidos":"us",
+          "Canadá":"ca","Senegal":"sn","Nigeria":"ng","Marruecos":"ma","Egipto":"eg",
+          "Japón":"jp","Corea del Sur":"kr","Irán":"ir","Australia":"au","Cabo Verde":"cv",
+          "Bosnia y Herzegovina":"ba","Islandia":"is","Panamá":"pa","Ghana":"gh","Serbia":"rs",
+          "Suiza":"ch","Ecuador":"ec","Holanda":"nl","Paraguay":"py"
+        };
+        const HOF_STATIC_YEARS = [2022, 2026, 2030]; // las 3 ediciones ya escritas a mano acá
+
+        function hofFlag40(team){ const c = HOF_FLAG_CODES[team]; return c ? `https://flagcdn.com/w40/${c}.png` : ''; }
+        function hofFlag320(team){ const c = HOF_FLAG_CODES[team]; return c ? `https://flagcdn.com/w320/${c}.png` : ''; }
+        function hofStarsFor(country, starMap){ return '⭐'.repeat(starMap[country]||1); }
+
+        function hofRow(team, gol, isWinner){
+          if(!team) return '';
+          return `<div class="team-row ${isWinner?'winner':''}">
+            <div class="team-identity"><img class="team-logo" src="${hofFlag40(team)}" alt=""><span>${team}</span></div>
+            <span class="score">${gol??''}</span>
+          </div>`;
+        }
+        function hofMatchBox(title, path, key, extraClass){
+          const m = path[key];
+          if(!m) return '';
+          return `<div class="match-box ${extraClass||''}">
+            <div class="match-phase">${title}</div>
+            ${hofRow(m.teamA, m.golA, m.winner===m.teamA)}
+            ${hofRow(m.teamB, m.golB, m.winner===m.teamB)}
+          </div>`;
+        }
+        function hofBracketHTML(path, champion){
+          if(!path) return '';
+          return `<div class="bracket-wrapper">
+            <div class="bracket-column side-octavos">
+              ${['octavos-L-0','octavos-L-1','octavos-L-2','octavos-L-3'].map((k,i)=>hofMatchBox('Octavos '+(i+1), path, k)).join('')}
+            </div>
+            <div class="bracket-column side-quarters">
+              ${['cuartos-L-0','cuartos-L-1'].map((k,i)=>hofMatchBox('Cuartos '+(i+1), path, k)).join('')}
+            </div>
+            <div class="bracket-column side-semis">${hofMatchBox('Semifinal 1', path, 'semis-L-0')}</div>
+            <div class="center-stage">
+              <div class="center-champion-badge">
+                <p style="color:#888; font-size:0.8rem; letter-spacing:2px;" class="caps-title">Campeón</p>
+                <h3>${champion||''} ⭐</h3>
+              </div>
+              ${hofMatchBox('Gran Final Absoluta', path, 'final-0', 'final-box')}
+              ${hofMatchBox('Definición 3er Puesto', path, 'tercer-0', 'consolation-box')}
+            </div>
+            <div class="bracket-column side-semis">${hofMatchBox('Semifinal 2', path, 'semis-R-0')}</div>
+            <div class="bracket-column side-quarters">
+              ${['cuartos-R-0','cuartos-R-1'].map((k,i)=>hofMatchBox('Cuartos '+(i+3), path, k)).join('')}
+            </div>
+            <div class="bracket-column side-octavos">
+              ${['octavos-R-0','octavos-R-1','octavos-R-2','octavos-R-3'].map((k,i)=>hofMatchBox('Octavos '+(i+5), path, k)).join('')}
+            </div>
+          </div>`;
+        }
+        function hofGroupsHTML(entry){
+          if(!entry.groupsBase) return '<p style="color:#666; font-size:0.85rem;">No se guardó el detalle de grupos de esta edición.</p>';
+          const groups = Object.keys(entry.groupsBase);
+          const matchesList = entry.groupMatches || [];
+          return `<div class="group-stage-container">${groups.map(g=>{
+            const gm = matchesList.filter(m=>m.group===g);
+            return `<div class="group-card">
+              <div class="group-card-title"><span>Grupo ${g}</span> <span>⚽</span></div>
+              ${gm.map(m=>`<div class="group-match"><span>${m.teamA} ${m.golA} - ${m.golB} ${m.teamB}</span></div>`).join('') || '<div class="group-match"><span>Sin partidos cargados</span></div>'}
+            </div>`;
+          }).join('')}</div>`;
+        }
+        function buildHofBanner(entry, starMap){
+          const id = 'ed'+entry.year;
+          const div = document.createElement('div');
+          div.className = `champion-banner banner-${id}`;
+          div.innerHTML = `
+            <div class="crest-wrapper">
+              <span class="banner-star">${hofStarsFor(entry.champion, starMap)}</span>
+              <img src="${hofFlag320(entry.champion)}" alt="${entry.champion}">
+            </div>
+            <h2 class="banner-title">${entry.champion}</h2>
+            <div class="banner-subtitle caps-title">Edición ${entry.year}</div>
+          `;
+          div.addEventListener('click', ()=>showEdition(id));
+          return div;
+        }
+        function toggleHofStage(id, stage){
+          const grupos = document.getElementById(id+'-stage-grupos');
+          const final = document.getElementById(id+'-stage-final');
+          const tabs = document.querySelectorAll(`#view-${id} .tab-btn`);
+          tabs.forEach(t=>t.classList.remove('active'));
+          if(stage==='grupos'){ grupos.style.display='grid'; final.style.display='none'; tabs[0]?.classList.add('active'); }
+          else { grupos.style.display='none'; final.style.display='flex'; tabs[1]?.classList.add('active'); }
+        }
+        window.toggleHofStage = toggleHofStage;
+        function buildHofDetail(entry){
+          const div = document.createElement('div');
+          div.className = 'path-card';
+          const id = 'ed'+entry.year;
+          div.id = 'view-'+id;
+          const path = entry.bracketPath || null;
+          div.innerHTML = `
+            <div style="text-align:center; margin-bottom:15px;">
+              <h2 class="caps-title" style="font-size:1.8rem; color:#fff;">Edición ${entry.year}</h2>
+              <p style="color:var(--gold); font-size:0.9rem; font-weight:bold; letter-spacing:1px;">
+                🏆 ${entry.champion} ${entry.scoreFinal?('— '+entry.scoreFinal+' vs '+(entry.runnerUp||'')):''}
+              </p>
+              ${entry.third ? `<p style="color:#888; font-size:0.8rem; margin-top:4px;">🥉 ${entry.third} ${entry.scoreThird||''} ${entry.fourth||''}</p>` : ''}
+            </div>
+            <div class="edition-tabs">
+              <button class="tab-btn active" onclick="toggleHofStage('${id}','grupos')">Fase de Grupos</button>
+              <button class="tab-btn" onclick="toggleHofStage('${id}','final')">Fase Final (Playoffs)</button>
+            </div>
+            <div id="${id}-stage-grupos">${hofGroupsHTML(entry)}</div>
+            <div id="${id}-stage-final" style="display:none;">${path ? hofBracketHTML(path, entry.champion) : '<p style="color:#666; font-size:0.85rem; text-align:center;">No se guardó el detalle del cuadro de esta edición.</p>'}</div>
+          `;
+          return div;
+        }
+
+        async function initHallOfFameSync(){
+          try{
+            if(!window.__hofDb) return;
+            const { ref, get } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
+            const snap = await get(ref(window.__hofDb, 'torneo/archivedEditions'));
+            const raw = snap.exists() ? snap.val() : null;
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            const archivedEditions = Array.isArray(parsed) ? parsed : [];
+
+            const nuevas = archivedEditions
+              .filter(e => e && e.champion && !HOF_STATIC_YEARS.includes(e.year))
+              .sort((a,b)=>a.year-b.year);
+
+            // Estrellas totales: arranca con las 3 ediciones ya escritas a mano acá
+            const starMap = { "Colombia":1, "España":1, "Alemania":1 };
+            nuevas.forEach(e=>{ starMap[e.champion] = (starMap[e.champion]||0) + 1; });
+
+            // Actualiza la cantidad de estrellas en los 3 banners que ya existen
+            document.querySelectorAll('.champion-banner').forEach(banner=>{
+              const nameEl = banner.querySelector('.banner-title');
+              const starEl = banner.querySelector('.banner-star');
+              if(nameEl && starEl) starEl.textContent = hofStarsFor(nameEl.textContent.trim(), starMap);
+            });
+
+            // Agrega un banner + panel de detalle por cada edición nueva
+            const container = document.querySelector('.banners-container');
+            const details = document.querySelector('.details-container');
+            nuevas.forEach(entry=>{
+              container.appendChild(buildHofBanner(entry, starMap));
+              details.appendChild(buildHofDetail(entry));
+            });
+          }catch(e){
+            console.error('No se pudieron cargar las ediciones nuevas del Salón de la Fama', e);
+          }
+        }
+        document.addEventListener('DOMContentLoaded', initHallOfFameSync);
     </script>
 </body>
 </html>
